@@ -1,0 +1,14 @@
+{
+  "name": "estante-api",
+  "version": "0.1.0",
+  "description": "API REST em Node.js para catálogo de livros, avaliações e estante de leitura",
+  "type": "module",
+  "main": "src/servidor.js",
+  "scripts": {
+    "start": "node src/servidor.js",
+    "dev": "node --watch src/servidor.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

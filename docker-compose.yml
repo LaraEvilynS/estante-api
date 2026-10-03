@@ -1,0 +1,31 @@
+services:
+  banco:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${BANCO_USUARIO}
+      POSTGRES_PASSWORD: ${BANCO_SENHA}
+      POSTGRES_DB: ${BANCO_NOME}
+    volumes:
+      - dados_banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BANCO_USUARIO} -d ${BANCO_NOME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+
+  api:
+    build: .
+    env_file: .env
+    ports:
+      - "${PORTA}:${PORTA}"
+    depends_on:
+      banco:
+        condition: service_healthy
+
+volumes:
+  dados_banco:
