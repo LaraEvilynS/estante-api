@@ -1,9 +1,12 @@
 import express from 'express';
+import cors from 'cors';
 import { tratadorDeErros } from './middlewares/tratadorDeErros.js';
 import { ErroAplicacao } from '../dominio/erros/ErroAplicacao.js';
 
-export function criarApp({ verificarBanco }) {
+export function criarApp({ verificarBanco, urlFrontend }) {
   const app = express();
+  // Libera apenas o front-end configurado a chamar a API pelo navegador (CORS).
+  app.use(cors({ origin: urlFrontend }));
   app.use(express.json());
 
   app.get('/saude', async (req, res) => {
