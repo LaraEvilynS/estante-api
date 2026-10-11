@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("URL_BANCO_DADOS")
+}
+
+enum PerfilUsuario {
+  USUARIO
+  ADMIN
+}
+
+enum StatusLeitura {
+  QUERO_LER
+  LENDO
+  LIDO
+}
+
+model Usuario {
+  id        String        @id @default(uuid()) @db.Uuid
+  nome      String
+  email     String        @unique
+  senhaHash String        @map("senha_hash")
+  perfil    PerfilUsuario @default(USUARIO)
+  criadoEm  DateTime      @default(now()) @map("criado_em")
+
+  avaliacoes   Avaliacao[]
+  itensEstante ItemEstante[]
+  tokensSenha  TokenRecuperacaoSenha[]
+
+  @@map("usuarios")
+}
+
+model Livro {
+  id           String   @id @default(uuid()) @db.Uuid
+  titulo       String
+  autor        String
+  isbn         String?  @unique
+  urlCapa      String?  @map("url_capa")
+  paginas      Int?
+  genero       String?
+  sinopse      String?  @db.Text
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  avaliacoes   Avaliacao[]
+  itensEstante ItemEstante[]
+
+  @@map("livros")
+}
+
+model Avaliacao {
+  id         String   @id @default(uuid()) @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  livroId    String   @map("livro_id") @db.Uuid
+  nota       Int
+  comentario String?  @db.Text
+  criadoEm   DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  livro   Livro   @relation(fields: [livroId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, livroId])
+  @@index([livroId])
+  @@map("avaliacoes")
+}
+
+model ItemEstante {
+  id            String        @id @default(uuid()) @db.Uuid
+  usuarioId     String        @map("usuario_id") @db.Uuid
+  livroId       String        @map("livro_id") @db.Uuid
+  status        StatusLeitura
+  atualizadoEm  DateTime      @updatedAt @map("atualizado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  livro   Livro   @relation(fields: [livroId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, livroId])
+  @@index([livroId])
+  @@map("itens_estante")
+}
+
+// Apoio à recuperação de senha (Semana 3): guarda só o HASH do token.
+model TokenRecuperacaoSenha {
+  id        String    @id @default(uuid()) @db.Uuid
+  usuarioId String    @map("usuario_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiraEm  DateTime  @map("expira_em")
+  usadoEm   DateTime? @map("usado_em")
+  criadoEm  DateTime  @default(now()) @map("criado_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("tokens_recuperacao_senha")
+}
