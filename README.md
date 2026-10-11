@@ -23,6 +23,7 @@ erDiagram
     USUARIO ||--o{ ITEM_ESTANTE : possui
     LIVRO ||--o{ AVALIACAO : recebe
     LIVRO ||--o{ ITEM_ESTANTE : aparece_em
+    USUARIO ||--o{ TOKEN_RECUPERACAO_SENHA : solicita
 
     USUARIO {
         uuid id PK
@@ -58,9 +59,17 @@ erDiagram
         enum status "QUERO_LER | LENDO | LIDO"
         datetime atualizado_em
     }
+    TOKEN_RECUPERACAO_SENHA {
+        uuid id PK
+        uuid usuario_id FK
+        string token_hash UK
+        datetime expira_em
+        datetime usado_em
+        datetime criado_em
+    }
 ```
 
-`AVALIACAO` e `ITEM_ESTANTE` têm par único (`usuario_id`, `livro_id`).
+`AVALIACAO` e `ITEM_ESTANTE` têm par único (`usuario_id`, `livro_id`). A nota é limitada de 1 a 5 por uma restrição `CHECK` no banco. Ao excluir um usuário ou livro, suas avaliações e itens de estante são excluídos em cascata. `TOKEN_RECUPERACAO_SENHA` é uma tabela de apoio (guarda só o hash do token) e não conta como entidade de negócio.
 
 ## Regras de negócio e permissões
 
@@ -68,6 +77,10 @@ erDiagram
 - O dono edita e exclui a própria avaliação; o `ADMIN` exclui qualquer uma.
 - Só o `ADMIN` cadastra, edita e remove livros.
 - A média das notas do livro é calculada a partir das avaliações.
+
+## Banco de dados
+
+PostgreSQL com [Prisma](https://www.prisma.io/). O esquema fica em `prisma/schema.prisma` e as migrations em `prisma/migrations/`. As migrations são aplicadas automaticamente quando o container da API inicia.
 
 ## Como executar
 
@@ -79,7 +92,7 @@ cp .env.example .env
 docker-compose up --build
 ```
 
-Verificação: `GET http://localhost:3000/saude` deve retornar `{"status":"ok"}`.
+Verificação: `GET http://localhost:3000/saude` deve retornar `{"status":"ok","banco":"conectado"}`.
 Caixa de e-mails de teste (Mailpit): http://localhost:8025
 
 ## Estrutura (Clean Architecture)
@@ -95,3 +108,4 @@ src/
 ## Status
 
 Semana 1: estrutura inicial, DER e ambiente Docker.
+Semana 2: modelagem concluída, persistência com Prisma/PostgreSQL e migrations no Docker.
