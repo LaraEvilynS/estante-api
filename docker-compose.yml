@@ -21,6 +21,9 @@ services:
   api:
     build: .
     env_file: .env
+    environment:
+      # Montada aqui para a senha existir em um único lugar (BANCO_SENHA).
+      URL_BANCO_DADOS: postgresql://${BANCO_USUARIO}:${BANCO_SENHA}@banco:5432/${BANCO_NOME}
     ports:
       - "${PORTA}:${PORTA}"
     depends_on:
