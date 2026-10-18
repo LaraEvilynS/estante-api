@@ -8,12 +8,19 @@
     "start": "node src/servidor.js",
     "dev": "node --watch src/servidor.js",
     "prisma:gerar": "prisma generate",
-    "migrar": "prisma migrate deploy"
+    "migrar": "prisma migrate deploy",
+    "test": "node --test"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^4.21.2",
-    "prisma": "^6.19.3"
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^10.1.5",
+    "prisma": "^6.19.3",
+    "zod": "^3.25.76"
   }
 }
