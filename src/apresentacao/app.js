@@ -6,6 +6,9 @@ import { tratadorDeErros } from './middlewares/tratadorDeErros.js';
 import { criarAutenticar } from './middlewares/autenticar.js';
 import { criarRotasAuth } from './rotas/authRotas.js';
 import { criarRotasUsuarios } from './rotas/usuariosRotas.js';
+import { criarRotasLivros } from './rotas/livrosRotas.js';
+import { criarRotasEstante } from './rotas/estanteRotas.js';
+import { criarRotasAvaliacoes } from './rotas/avaliacoesRotas.js';
 import { ErroAplicacao } from '../dominio/erros/ErroAplicacao.js';
 
 export function criarApp({ verificarBanco, urlFrontend, casosDeUso, servicoToken, limiteAuth = 50 }) {
@@ -37,6 +40,9 @@ export function criarApp({ verificarBanco, urlFrontend, casosDeUso, servicoToken
 
   app.use('/auth', criarRotasAuth({ casosDeUso, autenticar, limitador }));
   app.use('/usuarios', criarRotasUsuarios({ casosDeUso, autenticar }));
+  app.use('/livros', criarRotasLivros({ casosDeUso, autenticar }));
+  app.use('/estante', criarRotasEstante({ casosDeUso, autenticar }));
+  app.use('/avaliacoes', criarRotasAvaliacoes({ casosDeUso, autenticar }));
 
   app.use((req, res, next) => {
     next(new ErroAplicacao('Rota não encontrada.', 404));
