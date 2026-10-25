@@ -73,10 +73,27 @@ erDiagram
 
 ## Regras de negócio e permissões
 
-- Um usuário avalia um livro uma única vez, e só se ele estiver como `LIDO` na estante.
-- O dono edita e exclui a própria avaliação; o `ADMIN` exclui qualquer uma.
-- Só o `ADMIN` cadastra, edita e remove livros.
-- A média das notas do livro é calculada a partir das avaliações.
+**Livros**
+- O catálogo é público: qualquer pessoa lista, busca e consulta livros.
+- Só o `ADMIN` cadastra, edita e remove livros. O ISBN (opcional) é único.
+- Ao remover um livro, as avaliações e os itens de estante dele são removidos junto.
+- A média das notas e o total de avaliações são calculados a partir das avaliações e vêm junto com o livro.
+
+**Estante** (pessoal: cada usuário só vê e altera os próprios itens)
+- O usuário adiciona um livro com um status: `QUERO_LER`, `LENDO` ou `LIDO`. Cada livro aparece uma vez por estante.
+- Itens de outro usuário respondem 404, como se não existissem.
+- Um livro avaliado não pode mudar de `LIDO` nem sair da estante enquanto a avaliação existir.
+
+**Avaliações**
+- Só avalia quem marcou o livro como `LIDO`. Uma avaliação por usuário e livro. Nota de 1 a 5, comentário opcional.
+- Só o dono edita a avaliação.
+- O dono exclui a própria avaliação, e o `ADMIN` exclui qualquer uma (moderação).
+
+| Perfil | Pode |
+|---|---|
+| Visitante | Ver o catálogo e as avaliações; cadastrar-se, entrar e recuperar a senha |
+| `USUARIO` | Tudo do visitante, mais: gerir a própria estante, avaliar livros lidos, editar e excluir as próprias avaliações |
+| `ADMIN` | Tudo do usuário, mais: gerir o catálogo de livros, excluir qualquer avaliação e listar usuários |
 
 ## Banco de dados
 
@@ -120,11 +137,7 @@ Observações:
 
 Login por e-mail e senha com JWT (expira em `EXPIRACAO_JWT`). Rotas protegidas exigem o cabeçalho `Authorization: Bearer <token>`.
 
-| Perfil | Pode |
-|---|---|
-| Visitante | Cadastrar-se, entrar e recuperar a senha |
-| `USUARIO` | Ver a própria conta (`GET /auth/eu`) |
-| `ADMIN` | Tudo do usuário, mais operações administrativas (ex.: `GET /usuarios`) |
+As permissões de cada perfil estão na seção "Regras de negócio e permissões".
 
 Segurança aplicada: senhas com hash bcrypt; perfil nunca vem do cliente (todo cadastro é `USUARIO`); login responde a mesma mensagem para e-mail inexistente e senha errada; limite de tentativas nas rotas `/auth`; validação com Zod; cabeçalhos de segurança (Helmet); CORS restrito ao front; erros sem detalhes internos.
 
@@ -148,6 +161,19 @@ Limitação conhecida: os tokens JWT já emitidos continuam válidos até expira
 | `GET /auth/eu` | Autenticado | (nenhum) | 200 `{usuario}`; 401 |
 | `GET /usuarios` | `ADMIN` | (nenhum) | 200 `{usuarios}`; 401; 403 |
 | `GET /saude` | Público | (nenhum) | 200 API e banco ok; 503 banco fora |
+| `GET /livros` | Público | query: `busca`, `pagina` (1), `limite` (12, máx. 50) | 200 `{itens, pagina, limite, total, totalPaginas}` |
+| `GET /livros/:id` | Público | (nenhum) | 200 `{livro}` com `mediaNota` e `totalAvaliacoes`; 400 id inválido; 404 |
+| `POST /livros` | `ADMIN` | `titulo`, `autor`; opcionais: `isbn`, `urlCapa`, `paginas`, `genero`, `sinopse` | 201 `{livro}`; 400; 401; 403; 409 ISBN repetido |
+| `PATCH /livros/:id` | `ADMIN` | qualquer campo de livro (ao menos um); `null` limpa um campo opcional | 200 `{livro}`; 400; 403; 404; 409 |
+| `DELETE /livros/:id` | `ADMIN` | (nenhum) | 204; 403; 404 |
+| `GET /livros/:id/avaliacoes` | Público | (nenhum) | 200 `{avaliacoes}` (com nome do autor); 404 |
+| `POST /livros/:id/avaliacoes` | Autenticado | `nota` (1-5), `comentario` opcional | 201 `{avaliacao}`; 400; 403 livro não lido; 404; 409 já avaliou |
+| `PATCH /avaliacoes/:id` | Dono | `nota` e/ou `comentario` | 200 `{avaliacao}`; 400; 403; 404 |
+| `DELETE /avaliacoes/:id` | Dono ou `ADMIN` | (nenhum) | 204; 403; 404 |
+| `GET /estante` | Autenticado | query opcional: `status` | 200 `{itens}` (cada item com o `livro`) |
+| `POST /estante` | Autenticado | `livroId`, `status` | 201 `{item}`; 400; 404; 409 já está na estante |
+| `PATCH /estante/:id` | Dono do item | `status` | 200 `{item}`; 400; 404; 409 livro avaliado |
+| `DELETE /estante/:id` | Dono do item | (nenhum) | 204; 404; 409 livro avaliado |
 
 Exemplo de login:
 
@@ -158,6 +184,17 @@ Exemplo de login:
     {"token": "eyJhbGciOi...", "usuario": {"id": "...", "nome": "Administrador", "email": "admin@estante.local", "perfil": "ADMIN", "criadoEm": "..."}}
 
 Todo erro tem o formato `{"erro": "mensagem"}`; erros de validação trazem também `detalhes` (lista de `campo` e `mensagem`).
+
+## Collection do Postman
+
+Arquivo: `docs/estante-api.postman_collection.json` (21 requisições organizadas por pasta).
+
+1. No Postman: **Import** e escolha o arquivo.
+2. Abra a collection, aba **Variables**, e preencha `adminSenha` com a `ADMIN_SENHA` do seu `.env`. As demais variáveis já têm valores de exemplo (`baseUrl` é `http://localhost:3000`).
+3. Ordem sugerida: **Login (administrador)** (salva o token sozinho) > **Livros / Criar livro** (salva `livroId`) > **Cadastro** e **Login (usuário comum)** > **Estante / Adicionar** > **Estante / Atualizar status** para `LIDO` > **Avaliações / Avaliar livro**.
+4. A recuperação de senha é testada em **Esqueci a senha**: abra o Mailpit (http://localhost:8025), copie o `token` do link do e-mail para a variável `tokenRecuperacao` e envie **Redefinir senha**.
+
+Os tokens e ids são salvos automaticamente nas variáveis da collection; nenhuma senha real vai no arquivo.
 
 ## Estrutura (Clean Architecture)
 
@@ -174,3 +211,4 @@ src/
 Semana 1: estrutura inicial, DER e ambiente Docker.
 Semana 2: modelagem concluída, persistência com Prisma/PostgreSQL e migrations no Docker.
 Semana 3: cadastro, login com JWT, perfis (USUARIO e ADMIN) e recuperação de senha por e-mail.
+Semana 4: CRUD de livros, estante e avaliações com regras de negócio, e collection do Postman.

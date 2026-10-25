@@ -4,6 +4,9 @@ import { montarCasosDeUso } from './composicao.js';
 import { prisma, verificarBanco } from './infraestrutura/banco/prismaClient.js';
 import { criarRepositorioUsuario } from './infraestrutura/banco/repositorioUsuario.js';
 import { criarRepositorioTokenSenha } from './infraestrutura/banco/repositorioTokenSenha.js';
+import { criarRepositorioLivro } from './infraestrutura/banco/repositorioLivro.js';
+import { criarRepositorioItemEstante } from './infraestrutura/banco/repositorioItemEstante.js';
+import { criarRepositorioAvaliacao } from './infraestrutura/banco/repositorioAvaliacao.js';
 import { servicoHash } from './infraestrutura/seguranca/servicoHash.js';
 import { servicoTokenSeguro } from './infraestrutura/seguranca/servicoTokenSeguro.js';
 import { criarServicoTokenJwt } from './infraestrutura/seguranca/servicoTokenJwt.js';
@@ -15,6 +18,9 @@ const servicoToken = criarServicoTokenJwt({ segredo: config.segredoJwt, expiraca
 const casosDeUso = montarCasosDeUso({
   repositorioUsuario: criarRepositorioUsuario(prisma),
   repositorioTokenSenha: criarRepositorioTokenSenha(prisma),
+  repositorioLivro: criarRepositorioLivro(prisma),
+  repositorioItemEstante: criarRepositorioItemEstante(prisma),
+  repositorioAvaliacao: criarRepositorioAvaliacao(prisma),
   servicoHash,
   servicoToken,
   servicoTokenSeguro,
