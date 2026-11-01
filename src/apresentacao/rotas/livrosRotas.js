@@ -3,7 +3,9 @@ import { envolver } from './envolver.js';
 import { exigirPerfil } from '../middlewares/autenticar.js';
 import { PERFIS } from '../../dominio/usuario.js';
 import { idParams } from '../validacoes/comuns.js';
-import { criarLivroSchema, atualizarLivroSchema, listarLivrosQuery } from '../validacoes/livroSchemas.js';
+import {
+  criarLivroSchema, atualizarLivroSchema, listarLivrosQuery, buscaExternaQuery, obraParams,
+} from '../validacoes/livroSchemas.js';
 import { criarAvaliacaoSchema } from '../validacoes/avaliacaoSchemas.js';
 
 export function criarRotasLivros({ casosDeUso, autenticar }) {
@@ -13,6 +15,18 @@ export function criarRotasLivros({ casosDeUso, autenticar }) {
   // Catálogo público: qualquer pessoa pode listar e consultar.
   rotas.get('/', envolver(async (req, res) => {
     res.status(200).json(await casosDeUso.listarLivros(listarLivrosQuery.parse(req.query)));
+  }));
+
+  // Open Library (API externa): ajuda o ADMIN a preencher o cadastro.
+  // Estas rotas ficam antes de "/:id" para "externo" não ser tratado como um id.
+  rotas.get('/externo/busca', ...somenteAdmin, envolver(async (req, res) => {
+    const { titulo } = buscaExternaQuery.parse(req.query);
+    res.status(200).json({ resultados: await casosDeUso.buscarLivrosExternos(titulo) });
+  }));
+
+  rotas.get('/externo/obras/:idObra', ...somenteAdmin, envolver(async (req, res) => {
+    const { idObra } = obraParams.parse(req.params);
+    res.status(200).json({ detalhes: await casosDeUso.detalharLivroExterno(idObra) });
   }));
 
   rotas.get('/:id', envolver(async (req, res) => {
