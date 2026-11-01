@@ -41,3 +41,17 @@ export const listarLivrosQuery = z.object({
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(50).default(12),
 });
+
+// ----- Open Library (API externa) -----
+export const buscaExternaQuery = z.object({
+  titulo: z
+    .string({ required_error: 'Informe o título para buscar.' })
+    .trim()
+    .min(2, 'Digite pelo menos 2 caracteres.')
+    .max(100, 'Título muito longo.'),
+});
+
+// O identificador vai para a URL da API externa: só aceita o formato OL123W.
+export const obraParams = z.object({
+  idObra: z.string().regex(/^OL\d+W$/, 'Identificador de obra inválido.'),
+});
