@@ -54,6 +54,14 @@
     {
       "key": "tokenRecuperacao",
       "value": ""
+    },
+    {
+      "key": "usuarioId",
+      "value": ""
+    },
+    {
+      "key": "idObra",
+      "value": ""
     }
   ],
   "item": [
@@ -116,7 +124,20 @@
             "auth": {
               "type": "noauth"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('usuarioId', pm.response.json().usuario.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login (usuário comum)",
@@ -301,10 +322,10 @@
       ]
     },
     {
-      "name": "Usuários (admin)",
+      "name": "Usuários",
       "item": [
         {
-          "name": "Listar usuários",
+          "name": "Listar usuários (admin)",
           "request": {
             "method": "GET",
             "header": [],
@@ -318,12 +339,185 @@
               ]
             }
           }
+        },
+        {
+          "name": "Atualizar meu perfil",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/eu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "eu"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Leitor Exemplo Atualizado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Alterar minha senha",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/eu/senha",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "eu",
+                "senha"
+              ]
+            },
+            "description": "Para testar de verdade, troque novaSenha por outra senha (e atualize a variável senhaUsuario depois).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senhaAtual\": \"{{senhaUsuario}}\",\n  \"novaSenha\": \"{{senhaUsuario}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Excluir usuário (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/{{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "{{usuarioId}}"
+              ]
+            },
+            "description": "Faça o login de administrador antes. O id vem do Cadastro. Contas de administrador não podem ser excluídas."
+          }
+        },
+        {
+          "name": "Excluir minha conta",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/eu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usuarios",
+                "eu"
+              ]
+            },
+            "description": "Exige a senha no corpo. Contas de administrador não podem ser excluídas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senha\": \"{{senhaUsuario}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
     {
       "name": "Livros",
       "item": [
+        {
+          "name": "Buscar na Open Library (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/livros/externo/busca?titulo=dom casmurro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "livros",
+                "externo",
+                "busca"
+              ],
+              "query": [
+                {
+                  "key": "titulo",
+                  "value": "dom casmurro"
+                }
+              ]
+            },
+            "description": "API externa. Devolve candidatos (título, autor, ISBN, capa, páginas, gênero). Guarda o idObra do primeiro resultado."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const r = pm.response.json().resultados;",
+                  "  if (r.length) pm.collectionVariables.set('idObra', r[0].idObra);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhes da obra na Open Library (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/livros/externo/obras/{{idObra}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "livros",
+                "externo",
+                "obras",
+                "{{idObra}}"
+              ]
+            },
+            "description": "Traz a sinopse da obra escolhida. Use depois da busca."
+          }
+        },
         {
           "name": "Listar livros",
           "request": {

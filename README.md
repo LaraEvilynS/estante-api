@@ -6,7 +6,7 @@ API REST em Node.js para catálogo de livros, avaliações e estante de leitura.
 
 Leitores cadastram livros no catálogo, organizam sua estante pessoal (quero ler, lendo, lido) e avaliam os livros que já leram. Sistema da categoria **reviews**.
 
-**API externa:** Open Library (busca de dados do livro por título para preencher o cadastro). _(a implementar)_
+**API externa:** [Open Library](https://openlibrary.org/developers/api) (veja a seção "API externa" abaixo).
 
 ## Entidades
 
@@ -84,6 +84,11 @@ erDiagram
 - Itens de outro usuário respondem 404, como se não existissem.
 - Um livro avaliado não pode mudar de `LIDO` nem sair da estante enquanto a avaliação existir.
 
+**Usuários**
+- O usuário edita o próprio nome e troca a própria senha (exige a senha atual).
+- O usuário exclui a própria conta, confirmando a senha. Suas avaliações e itens de estante saem junto.
+- O `ADMIN` exclui usuários comuns. **Contas de administrador não podem ser excluídas** (o sistema nunca fica sem administrador).
+
 **Avaliações**
 - Só avalia quem marcou o livro como `LIDO`. Uma avaliação por usuário e livro. Nota de 1 a 5, comentário opcional.
 - Só o dono edita a avaliação.
@@ -93,7 +98,7 @@ erDiagram
 |---|---|
 | Visitante | Ver o catálogo e as avaliações; cadastrar-se, entrar e recuperar a senha |
 | `USUARIO` | Tudo do visitante, mais: gerir a própria estante, avaliar livros lidos, editar e excluir as próprias avaliações |
-| `ADMIN` | Tudo do usuário, mais: gerir o catálogo de livros, excluir qualquer avaliação e listar usuários |
+| `ADMIN` | Tudo do usuário, mais: gerir o catálogo de livros (inclusive buscar na Open Library), excluir qualquer avaliação, listar usuários e excluir usuários comuns |
 
 ## Banco de dados
 
@@ -160,8 +165,14 @@ Limitação conhecida: os tokens JWT já emitidos continuam válidos até expira
 | `POST /auth/redefinir-senha` | Público | `token`, `novaSenha` (8-72) | 200 `{mensagem}`; 400 token inválido ou expirado |
 | `GET /auth/eu` | Autenticado | (nenhum) | 200 `{usuario}`; 401 |
 | `GET /usuarios` | `ADMIN` | (nenhum) | 200 `{usuarios}`; 401; 403 |
+| `PATCH /usuarios/eu` | Autenticado | `nome` (2-100) | 200 `{usuario}`; 400; 401 |
+| `PATCH /usuarios/eu/senha` | Autenticado | `senhaAtual`, `novaSenha` (8-72) | 200; 400 senha atual incorreta; 401 |
+| `DELETE /usuarios/eu` | Autenticado | `senha` (confirmação) | 204; 400 senha incorreta; 403 conta de administrador |
+| `DELETE /usuarios/:id` | `ADMIN` | (nenhum) | 204; 400; 403 (alvo é administrador ou sem permissão); 404 |
 | `GET /saude` | Público | (nenhum) | 200 API e banco ok; 503 banco fora |
 | `GET /livros` | Público | query: `busca`, `pagina` (1), `limite` (12, máx. 50) | 200 `{itens, pagina, limite, total, totalPaginas}` |
+| `GET /livros/externo/busca` | `ADMIN` | query: `titulo` (2-100) | 200 `{resultados}` (candidatos da Open Library); 400; 403; 502 API externa fora |
+| `GET /livros/externo/obras/:idObra` | `ADMIN` | `idObra` no formato `OL123W` | 200 `{detalhes: {sinopse}}`; 400; 403; 404; 502 |
 | `GET /livros/:id` | Público | (nenhum) | 200 `{livro}` com `mediaNota` e `totalAvaliacoes`; 400 id inválido; 404 |
 | `POST /livros` | `ADMIN` | `titulo`, `autor`; opcionais: `isbn`, `urlCapa`, `paginas`, `genero`, `sinopse` | 201 `{livro}`; 400; 401; 403; 409 ISBN repetido |
 | `PATCH /livros/:id` | `ADMIN` | qualquer campo de livro (ao menos um); `null` limpa um campo opcional | 200 `{livro}`; 400; 403; 404; 409 |
@@ -185,9 +196,19 @@ Exemplo de login:
 
 Todo erro tem o formato `{"erro": "mensagem"}`; erros de validação trazem também `detalhes` (lista de `campo` e `mensagem`).
 
+## API externa: Open Library
+
+- **API:** [Open Library](https://openlibrary.org/developers/api) (`search.json` e `works/{id}.json`). Gratuita e **sem chave de acesso**: não há nada para configurar no `.env`.
+- **Para que serve:** ao cadastrar um livro, o administrador digita o título e o sistema busca candidatos na Open Library (título, autor, ISBN, capa, páginas, gênero). Ao escolher um, a sinopse é buscada e **o formulário de cadastro é preenchido automaticamente**, evitando digitar tudo à mão. O administrador revisa os dados antes de salvar.
+- **Como funciona:** o back-end é quem chama a Open Library (`GET /livros/externo/busca` e `GET /livros/externo/obras/:idObra`, só para `ADMIN`). O identificador da obra é validado (`OL123W`) antes de ir para a URL externa, e as falhas da API externa (fora do ar, lenta ou resposta inválida) viram um erro 502 com mensagem amigável.
+- **Como verificar:**
+  1. No Postman: faça **Login (administrador)** e depois **Livros / Buscar na Open Library** (o `idObra` do primeiro resultado é guardado) e **Detalhes da obra na Open Library**.
+  2. No site (repositório `estante-web`): entre como administrador, abra **Livros > Cadastrar livro** e use o campo **Buscar na Open Library**.
+- **Requisito:** o container da API precisa de acesso à internet (o Docker padrão já tem).
+
 ## Collection do Postman
 
-Arquivo: `docs/estante-api.postman_collection.json` (21 requisições organizadas por pasta).
+Arquivo: `docs/estante-api.postman_collection.json` (27 requisições organizadas por pasta).
 
 1. No Postman: **Import** e escolha o arquivo.
 2. Abra a collection, aba **Variables**, e preencha `adminSenha` com a `ADMIN_SENHA` do seu `.env`. As demais variáveis já têm valores de exemplo (`baseUrl` é `http://localhost:3000`).
@@ -212,3 +233,4 @@ Semana 1: estrutura inicial, DER e ambiente Docker.
 Semana 2: modelagem concluída, persistência com Prisma/PostgreSQL e migrations no Docker.
 Semana 3: cadastro, login com JWT, perfis (USUARIO e ADMIN) e recuperação de senha por e-mail.
 Semana 4: CRUD de livros, estante e avaliações com regras de negócio, e collection do Postman.
+Semana 5: integração com a Open Library e CRUD de usuário (editar perfil, trocar senha, excluir conta).
