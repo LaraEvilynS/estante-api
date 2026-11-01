@@ -5,6 +5,12 @@ import { criarRedefinirSenha } from './aplicacao/casos-de-uso/redefinirSenha.js'
 import { criarBuscarUsuarioAtual } from './aplicacao/casos-de-uso/buscarUsuarioAtual.js';
 import { criarListarUsuarios } from './aplicacao/casos-de-uso/listarUsuarios.js';
 import { criarGarantirAdmin } from './aplicacao/casos-de-uso/garantirAdmin.js';
+import { criarBuscarLivrosExternos } from './aplicacao/casos-de-uso/livros/buscarLivrosExternos.js';
+import { criarDetalharLivroExterno } from './aplicacao/casos-de-uso/livros/detalharLivroExterno.js';
+import { criarAtualizarPerfil } from './aplicacao/casos-de-uso/usuarios/atualizarPerfil.js';
+import { criarAlterarSenha } from './aplicacao/casos-de-uso/usuarios/alterarSenha.js';
+import { criarExcluirConta } from './aplicacao/casos-de-uso/usuarios/excluirConta.js';
+import { criarExcluirUsuario } from './aplicacao/casos-de-uso/usuarios/excluirUsuario.js';
 import { criarCriarLivro } from './aplicacao/casos-de-uso/livros/criarLivro.js';
 import { criarListarLivros } from './aplicacao/casos-de-uso/livros/listarLivros.js';
 import { criarBuscarLivro } from './aplicacao/casos-de-uso/livros/buscarLivro.js';
@@ -23,7 +29,7 @@ import { criarRemoverAvaliacao } from './aplicacao/casos-de-uso/avaliacoes/remov
 // e as entrega aos casos de uso. As regras de negócio não conhecem esses detalhes.
 export function montarCasosDeUso({
   repositorioUsuario, repositorioTokenSenha, repositorioLivro, repositorioItemEstante, repositorioAvaliacao,
-  servicoHash, servicoToken, servicoTokenSeguro, servicoEmail, urlFrontend, validadeTokenSenhaMinutos,
+  servicoLivrosExternos, servicoHash, servicoToken, servicoTokenSeguro, servicoEmail, urlFrontend, validadeTokenSenhaMinutos,
 }) {
   return {
     cadastrarUsuario: criarCadastrarUsuario({ repositorioUsuario, servicoHash }),
@@ -37,6 +43,13 @@ export function montarCasosDeUso({
     listarUsuarios: criarListarUsuarios({ repositorioUsuario }),
     garantirAdmin: criarGarantirAdmin({ repositorioUsuario, servicoHash }),
 
+    atualizarPerfil: criarAtualizarPerfil({ repositorioUsuario }),
+    alterarSenha: criarAlterarSenha({ repositorioUsuario, servicoHash }),
+    excluirConta: criarExcluirConta({ repositorioUsuario, servicoHash }),
+    excluirUsuario: criarExcluirUsuario({ repositorioUsuario }),
+
+    buscarLivrosExternos: criarBuscarLivrosExternos({ servicoLivrosExternos }),
+    detalharLivroExterno: criarDetalharLivroExterno({ servicoLivrosExternos }),
     criarLivro: criarCriarLivro({ repositorioLivro }),
     listarLivros: criarListarLivros({ repositorioLivro, repositorioAvaliacao }),
     buscarLivro: criarBuscarLivro({ repositorioLivro, repositorioAvaliacao }),

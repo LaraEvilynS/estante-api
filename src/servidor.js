@@ -10,6 +10,7 @@ import { criarRepositorioAvaliacao } from './infraestrutura/banco/repositorioAva
 import { servicoHash } from './infraestrutura/seguranca/servicoHash.js';
 import { servicoTokenSeguro } from './infraestrutura/seguranca/servicoTokenSeguro.js';
 import { criarServicoTokenJwt } from './infraestrutura/seguranca/servicoTokenJwt.js';
+import { criarServicoOpenLibrary } from './infraestrutura/externo/openLibrary.js';
 import { criarServicoEmail } from './infraestrutura/email/servicoEmail.js';
 
 const config = lerConfiguracao();
@@ -21,6 +22,7 @@ const casosDeUso = montarCasosDeUso({
   repositorioLivro: criarRepositorioLivro(prisma),
   repositorioItemEstante: criarRepositorioItemEstante(prisma),
   repositorioAvaliacao: criarRepositorioAvaliacao(prisma),
+  servicoLivrosExternos: criarServicoOpenLibrary(),
   servicoHash,
   servicoToken,
   servicoTokenSeguro,
