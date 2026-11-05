@@ -15,7 +15,9 @@ export function criarRepositorioUsuario(prisma) {
     buscarPorId: (id) => prisma.usuario.findUnique({ where: { id } }),
     atualizarNome: (id, nome) => prisma.usuario.update({ where: { id }, data: { nome } }),
     remover: (id) => prisma.usuario.delete({ where: { id } }),
-    atualizarSenha: (id, senhaHash) => prisma.usuario.update({ where: { id }, data: { senhaHash } }),
+    // Registrar o momento da troca invalida as sessões anteriores (ver validarSessao).
+    atualizarSenha: (id, senhaHash) =>
+      prisma.usuario.update({ where: { id }, data: { senhaHash, senhaAlteradaEm: new Date() } }),
     listar: () => prisma.usuario.findMany({ orderBy: { criadoEm: 'asc' } }),
   };
 }
