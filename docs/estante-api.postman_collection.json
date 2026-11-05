@@ -392,7 +392,7 @@
                 "senha"
               ]
             },
-            "description": "Para testar de verdade, troque novaSenha por outra senha (e atualize a variável senhaUsuario depois).",
+            "description": "Depois de trocar a senha, a sessão atual deixa de valer: faça o login de novo. Para testar de verdade, troque novaSenha por outra senha (e atualize a variável senhaUsuario).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"senhaAtual\": \"{{senhaUsuario}}\",\n  \"novaSenha\": \"{{senhaUsuario}}\"\n}",

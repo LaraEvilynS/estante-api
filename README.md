@@ -21,9 +21,9 @@ Leitores cadastram livros no catálogo, organizam sua estante pessoal (quero ler
 erDiagram
     USUARIO ||--o{ AVALIACAO : escreve
     USUARIO ||--o{ ITEM_ESTANTE : possui
+    USUARIO ||--o{ TOKEN_RECUPERACAO_SENHA : solicita
     LIVRO ||--o{ AVALIACAO : recebe
     LIVRO ||--o{ ITEM_ESTANTE : aparece_em
-    USUARIO ||--o{ TOKEN_RECUPERACAO_SENHA : solicita
 
     USUARIO {
         uuid id PK
@@ -31,6 +31,7 @@ erDiagram
         string email UK
         string senha_hash
         enum perfil "USUARIO | ADMIN"
+        datetime senha_alterada_em
         datetime criado_em
     }
     LIVRO {
@@ -43,6 +44,7 @@ erDiagram
         string genero
         text sinopse
         datetime criado_em
+        datetime atualizado_em
     }
     AVALIACAO {
         uuid id PK
@@ -69,7 +71,7 @@ erDiagram
     }
 ```
 
-`AVALIACAO` e `ITEM_ESTANTE` têm par único (`usuario_id`, `livro_id`). A nota é limitada de 1 a 5 por uma restrição `CHECK` no banco. Ao excluir um usuário ou livro, suas avaliações e itens de estante são excluídos em cascata. `TOKEN_RECUPERACAO_SENHA` é uma tabela de apoio (guarda só o hash do token) e não conta como entidade de negócio.
+`AVALIACAO` e `ITEM_ESTANTE` têm par único (`usuario_id`, `livro_id`). A nota é limitada de 1 a 5 por uma restrição `CHECK` no banco. Ao excluir um usuário ou livro, suas avaliações e itens de estante são excluídos em cascata. `TOKEN_RECUPERACAO_SENHA` é uma tabela de apoio (guarda só o hash do token) e não conta como entidade de negócio. `senha_alterada_em` registra a última troca de senha e é usada para encerrar as sessões antigas.
 
 ## Regras de negócio e permissões
 
@@ -106,7 +108,7 @@ PostgreSQL com [Prisma](https://www.prisma.io/). O esquema fica em `prisma/schem
 
 ## Como executar
 
-Pré-requisitos: Docker e Docker Compose.
+Pré-requisitos: Docker e Docker Compose. (Nos exemplos usamos `docker compose`; em instalações antigas, o comando equivalente é `docker-compose`.)
 
 1. Crie o arquivo de ambiente:
 
@@ -144,16 +146,21 @@ Login por e-mail e senha com JWT (expira em `EXPIRACAO_JWT`). Rotas protegidas e
 
 As permissões de cada perfil estão na seção "Regras de negócio e permissões".
 
-Segurança aplicada: senhas com hash bcrypt; perfil nunca vem do cliente (todo cadastro é `USUARIO`); login responde a mesma mensagem para e-mail inexistente e senha errada; limite de tentativas nas rotas `/auth`; validação com Zod; cabeçalhos de segurança (Helmet); CORS restrito ao front; erros sem detalhes internos.
+Segurança aplicada:
+
+- Senhas com hash bcrypt; o perfil nunca vem do cliente (todo cadastro é `USUARIO`) e, a cada requisição, é lido do banco, não do token.
+- A cada requisição autenticada, a sessão é conferida no banco: token de conta excluída é recusado (401) e **toda troca de senha (pelo perfil ou pelo link do e-mail) encerra as sessões anteriores**.
+- Login responde a mesma mensagem para e-mail inexistente e senha errada.
+- Limite de requisições por IP: 600 a cada 15 minutos na API toda e 50 a cada 15 minutos nas rotas `/auth`.
+- Validação de todas as entradas com Zod; cabeçalhos de segurança (Helmet); CORS restrito ao front.
+- Erros padronizados no middleware global, sem detalhes internos; erros conhecidos do banco viram 400, 404 ou 409.
 
 ### Recuperação de senha
 
 1. `POST /auth/esqueci-senha` com o e-mail. A resposta é sempre a mesma, exista ou não a conta.
-2. A API gera um token aleatório, guarda **somente o hash** dele (válido por `VALIDADE_TOKEN_SENHA_MINUTOS`, uso único) e envia o link por e-mail. Um novo pedido invalida os anteriores.
+2. A API gera um token aleatório, guarda **somente o hash** dele (válido por `VALIDADE_TOKEN_SENHA_MINUTOS`, uso único) e envia o link por e-mail. Um novo pedido invalida os anteriores. Ao redefinir a senha, as sessões antigas da conta são encerradas.
 3. O e-mail chega no Mailpit (http://localhost:8025) com o link `URL_FRONTEND/redefinir-senha?token=...`.
 4. `POST /auth/redefinir-senha` com o token e a nova senha.
-
-Limitação conhecida: os tokens JWT já emitidos continuam válidos até expirarem, mesmo depois de uma troca de senha.
 
 ## Endpoints
 
@@ -212,7 +219,7 @@ Arquivo: `docs/estante-api.postman_collection.json` (27 requisições organizada
 
 1. No Postman: **Import** e escolha o arquivo.
 2. Abra a collection, aba **Variables**, e preencha `adminSenha` com a `ADMIN_SENHA` do seu `.env`. As demais variáveis já têm valores de exemplo (`baseUrl` é `http://localhost:3000`).
-3. Ordem sugerida: **Login (administrador)** (salva o token sozinho) > **Livros / Criar livro** (salva `livroId`) > **Cadastro** e **Login (usuário comum)** > **Estante / Adicionar** > **Estante / Atualizar status** para `LIDO` > **Avaliações / Avaliar livro**.
+3. Depois de **Alterar minha senha**, a sessão antiga deixa de valer: faça o login de novo. Ordem sugerida: **Login (administrador)** (salva o token sozinho) > **Livros / Criar livro** (salva `livroId`) > **Cadastro** e **Login (usuário comum)** > **Estante / Adicionar** > **Estante / Atualizar status** para `LIDO` > **Avaliações / Avaliar livro**.
 4. A recuperação de senha é testada em **Esqueci a senha**: abra o Mailpit (http://localhost:8025), copie o `token` do link do e-mail para a variável `tokenRecuperacao` e envie **Redefinir senha**.
 
 Os tokens e ids são salvos automaticamente nas variáveis da collection; nenhuma senha real vai no arquivo.
@@ -221,16 +228,33 @@ Os tokens e ids são salvos automaticamente nas variáveis da collection; nenhum
 
 ```
 src/
-  dominio/          entidades e regras de negócio puras
-  aplicacao/        casos de uso e interfaces (repositórios, serviços)
-  infraestrutura/   banco, e-mail, API externa
-  apresentacao/     rotas, controllers, middlewares (erros globais)
+  dominio/            regras puras, sem dependências externas (perfis, status, erros, resumo do livro)
+  aplicacao/
+    casos-de-uso/     uma função por ação do sistema (livros/, estante/, avaliacoes/, usuarios/ e as de autenticação)
+  infraestrutura/
+    banco/            repositórios com Prisma
+    seguranca/        bcrypt, JWT e token de recuperação de senha
+    email/            envio de e-mail (Nodemailer)
+    externo/          cliente da Open Library
+  apresentacao/
+    rotas/            rotas Express por recurso
+    validacoes/       schemas Zod
+    middlewares/      autenticação, perfis e tratamento global de erros
+  composicao.js       liga os casos de uso às implementações concretas
+  configuracao.js     lê e valida o .env
+  servidor.js         ponto de entrada
+prisma/               schema e migrations
+tests/                testes automáticos
+docs/                 collection do Postman
 ```
 
-## Status
+**Por que assim:** os casos de uso recebem repositórios e serviços como parâmetros (injeção de dependência), então não importam Prisma, JWT nem Nodemailer: a dependência aponta de fora para dentro e as regras de negócio ficam isoladas dos detalhes de infraestrutura. Por isso elas são testadas sem banco (`npm test`), com repositórios em memória. Trocar o banco, o serviço de e-mail ou a API externa exige mexer só na camada de infraestrutura e na composição.
 
-Semana 1: estrutura inicial, DER e ambiente Docker.
-Semana 2: modelagem concluída, persistência com Prisma/PostgreSQL e migrations no Docker.
-Semana 3: cadastro, login com JWT, perfis (USUARIO e ADMIN) e recuperação de senha por e-mail.
-Semana 4: CRUD de livros, estante e avaliações com regras de negócio, e collection do Postman.
-Semana 5: integração com a Open Library e CRUD de usuário (editar perfil, trocar senha, excluir conta).
+## Limitações conhecidas
+
+- A regra "só avalia livro lido" é garantida pela aplicação, não por uma restrição do banco.
+- A sessão dura `EXPIRACAO_JWT` (1 hora por padrão); o logout apaga o token no navegador, não há lista de tokens revogados no servidor.
+- O administrador inicial vem do `.env`; não há tela para criar outros, e contas de administrador não podem ser excluídas.
+- Exclusões são definitivas (sem lixeira) e apagam em cascata os dados relacionados.
+- A busca da Open Library depende do serviço externo e traz dados de qualidade variável, por isso o administrador revisa antes de salvar.
+- Os testes automáticos usam repositórios em memória; as consultas do Prisma e a Open Library real foram validadas manualmente pela collection do Postman.
