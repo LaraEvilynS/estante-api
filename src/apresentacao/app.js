@@ -11,15 +11,28 @@ import { criarRotasEstante } from './rotas/estanteRotas.js';
 import { criarRotasAvaliacoes } from './rotas/avaliacoesRotas.js';
 import { ErroAplicacao } from '../dominio/erros/ErroAplicacao.js';
 
-export function criarApp({ verificarBanco, urlFrontend, casosDeUso, servicoToken, limiteAuth = 50 }) {
+export function criarApp({
+  verificarBanco, urlFrontend, casosDeUso, servicoToken, limiteAuth = 50, limiteGeral = 600,
+}) {
   const app = express();
   app.use(helmet());
   // Libera apenas o front-end configurado a chamar a API pelo navegador (CORS).
   app.use(cors({ origin: urlFrontend }));
   app.use(express.json({ limit: '10kb' }));
 
-  const autenticar = criarAutenticar(servicoToken);
-  // Limita tentativas nas rotas de autenticação (proteção contra força bruta).
+  // Limite geral de requisições por IP, para toda a API.
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: limiteGeral,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { erro: 'Muitas requisições. Aguarde alguns minutos e tente de novo.' },
+    }),
+  );
+
+  const autenticar = criarAutenticar({ servicoToken, validarSessao: casosDeUso.validarSessao });
+  // Limite mais rígido nas rotas de autenticação (proteção contra força bruta).
   const limitador = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: limiteAuth,

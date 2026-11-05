@@ -4,6 +4,7 @@ import { criarSolicitarRecuperacaoSenha } from './aplicacao/casos-de-uso/solicit
 import { criarRedefinirSenha } from './aplicacao/casos-de-uso/redefinirSenha.js';
 import { criarBuscarUsuarioAtual } from './aplicacao/casos-de-uso/buscarUsuarioAtual.js';
 import { criarListarUsuarios } from './aplicacao/casos-de-uso/listarUsuarios.js';
+import { criarValidarSessao } from './aplicacao/casos-de-uso/validarSessao.js';
 import { criarGarantirAdmin } from './aplicacao/casos-de-uso/garantirAdmin.js';
 import { criarBuscarLivrosExternos } from './aplicacao/casos-de-uso/livros/buscarLivrosExternos.js';
 import { criarDetalharLivroExterno } from './aplicacao/casos-de-uso/livros/detalharLivroExterno.js';
@@ -42,6 +43,7 @@ export function montarCasosDeUso({
     buscarUsuarioAtual: criarBuscarUsuarioAtual({ repositorioUsuario }),
     listarUsuarios: criarListarUsuarios({ repositorioUsuario }),
     garantirAdmin: criarGarantirAdmin({ repositorioUsuario, servicoHash }),
+    validarSessao: criarValidarSessao({ repositorioUsuario }),
 
     atualizarPerfil: criarAtualizarPerfil({ repositorioUsuario }),
     alterarSenha: criarAlterarSenha({ repositorioUsuario, servicoHash }),

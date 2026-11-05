@@ -25,6 +25,8 @@ model Usuario {
   senhaHash String        @map("senha_hash")
   perfil    PerfilUsuario @default(USUARIO)
   criadoEm  DateTime      @default(now()) @map("criado_em")
+  // Quando a senha foi trocada pela última vez: sessões (tokens) emitidas antes disso deixam de valer.
+  senhaAlteradaEm DateTime? @map("senha_alterada_em")
 
   avaliacoes   Avaliacao[]
   itensEstante ItemEstante[]
