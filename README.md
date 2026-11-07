@@ -4,7 +4,7 @@ API REST em Node.js para catálogo de livros, avaliações e estante de leitura.
 
 ## Sobre o sistema
 
-Leitores cadastram livros no catálogo, organizam sua estante pessoal (quero ler, lendo, lido) e avaliam os livros que já leram. Sistema da categoria **reviews**.
+O administrador cadastra os livros no catálogo; os leitores organizam sua estante pessoal (quero ler, lendo, lido) e avaliam os livros que já leram. Sistema da categoria **reviews**.
 
 **API externa:** [Open Library](https://openlibrary.org/developers/api) (veja a seção "API externa" abaixo).
 
@@ -193,13 +193,80 @@ Segurança aplicada:
 | `PATCH /estante/:id` | Dono do item | `status` | 200 `{item}`; 400; 404; 409 livro avaliado |
 | `DELETE /estante/:id` | Dono do item | (nenhum) | 204; 404; 409 livro avaliado |
 
-Exemplo de login:
+### Exemplos de requisição e resposta
+
+Nas rotas protegidas, envie `Authorization: Bearer <token>` (o token vem do login). Os valores `...` mudam a cada execução.
+
+Login (público):
 
     POST /auth/login
     {"email": "admin@estante.local", "senha": "sua_senha_admin"}
 
     200 OK
     {"token": "eyJhbGciOi...", "usuario": {"id": "...", "nome": "Administrador", "email": "admin@estante.local", "perfil": "ADMIN", "criadoEm": "..."}}
+
+Cadastro (público):
+
+    POST /auth/cadastro
+    {"nome": "Maria Silva", "email": "maria@exemplo.com", "senha": "senha12345"}
+
+    201 Created
+    {"usuario": {"id": "...", "nome": "Maria Silva", "email": "maria@exemplo.com", "perfil": "USUARIO", "criadoEm": "..."}}
+
+Erro de validação:
+
+    POST /auth/cadastro
+    {"nome": "M", "email": "invalido", "senha": "123"}
+
+    400 Bad Request
+    {"erro": "Dados inválidos.", "detalhes": [{"campo": "nome", "mensagem": "O nome deve ter pelo menos 2 caracteres."}, {"campo": "email", "mensagem": "E-mail inválido."}, {"campo": "senha", "mensagem": "A senha deve ter pelo menos 8 caracteres."}]}
+
+Cadastrar livro (`ADMIN`; o ISBN é guardado sem hífens):
+
+    POST /livros
+    {"titulo": "Dom Casmurro", "autor": "Machado de Assis", "isbn": "978-85-359-0277-5", "paginas": 256, "genero": "Romance"}
+
+    201 Created
+    {"livro": {"id": "...", "titulo": "Dom Casmurro", "autor": "Machado de Assis", "isbn": "9788535902775", "urlCapa": null, "paginas": 256, "genero": "Romance", "sinopse": null, "criadoEm": "...", "mediaNota": null, "totalAvaliacoes": 0}}
+
+Listar livros (público, com busca e paginação):
+
+    GET /livros?busca=dom&limite=12
+
+    200 OK
+    {"itens": [{"id": "...", "titulo": "Dom Casmurro", "autor": "Machado de Assis", "mediaNota": 5, "totalAvaliacoes": 1, "...": "..."}], "pagina": 1, "limite": 12, "total": 1, "totalPaginas": 1}
+
+Adicionar à estante (autenticado):
+
+    POST /estante
+    {"livroId": "<id do livro>", "status": "LIDO"}
+
+    201 Created
+    {"item": {"id": "...", "livroId": "...", "status": "LIDO", "livro": {"id": "...", "titulo": "Dom Casmurro", "autor": "Machado de Assis", "...": "..."}}}
+
+Avaliar um livro lido (autenticado):
+
+    POST /livros/<id do livro>/avaliacoes
+    {"nota": 5, "comentario": "Clássico absoluto."}
+
+    201 Created
+    {"avaliacao": {"id": "...", "livroId": "...", "usuarioId": "...", "nota": 5, "comentario": "Clássico absoluto.", "criadoEm": "..."}}
+
+Regra de negócio (livro avaliado não pode deixar de ser "lido"):
+
+    PATCH /estante/<id do item>
+    {"status": "LENDO"}
+
+    409 Conflict
+    {"erro": "Exclua sua avaliação antes de mudar o status deste livro."}
+
+Sem permissão (um `USUARIO` tentando cadastrar livro):
+
+    POST /livros
+    {"titulo": "X", "autor": "Y"}
+
+    403 Forbidden
+    {"erro": "Acesso negado."}
 
 Todo erro tem o formato `{"erro": "mensagem"}`; erros de validação trazem também `detalhes` (lista de `campo` e `mensagem`).
 
